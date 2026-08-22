@@ -1,6 +1,6 @@
 # ex4pm-plan
 
-`ex4pm-plan` is the 80/20 planning/search compute worker for [ex4pm](https://github.com/seanchatmangpt/ex4pm). It is a deliberately lean downstream distribution of [Airbus scikit-decide](https://github.com/airbus/scikit-decide), preserving its high-value domain/solver calculus and selected native search algorithms while removing the heavyweight default scientific/RL stack.
+`ex4pm-plan` is the 80/20 planning/search compute worker for [ex4pm](https://github.com/seanchatmangpt/ex4pm). It is a deliberately lean downstream distribution of [Airbus scikit-decide](https://github.com/airbus/scikit-decide), preserving its high-value domain/solver calculus and selected native search algorithms while physically removing unsupported heavyweight surfaces.
 
 Upstream baseline: `airbus/scikit-decide@138799ba44a9049ee9bb21a937c9ac669f043afd`.
 
@@ -25,16 +25,17 @@ ex4pm
 
 ## The 80/20 cut
 
-### Retained default solver families
+### Retained
 
-- A* — exposed through the stable cloud-worker protocol
-- BFWS — retained in the lean scikit-decide library surface
-- IW — retained in the lean scikit-decide library surface
 - scikit-decide core domain/solver abstractions
-- deterministic explicit graph domains
-- C++ acceleration used by the retained solvers
+- explicit deterministic `GraphDomain`
+- native C++ A*
+- native C++ BFWS
+- native C++ IW
+- A* exposed through the stable cloud-worker protocol
+- deterministic admission, replay verification, and evidence hashes
 
-### Removed from the default build/product
+### Removed
 
 - Ray / RLlib
 - Stable-Baselines3
@@ -44,12 +45,13 @@ ex4pm
 - flight-planning/cartography stacks
 - discrete-optimization and scheduling stacks
 - LP/POMDP solver families
-- PDDL/PPDDL grounding stack and Clingo
+- PDDL/PPDDL grounding stack, Clingo, and PEGTL
 - Optuna tuning
-- upstream Binder/docs/examples payloads
-- broad multi-OS scientific/release CI
+- Python pathos/pynng/dill multiprocessing
+- Binder, notebooks, docs, examples, stale JS tooling and upstream mega-lockfiles
+- the upstream broad solver/domain test matrix
 
-The source fork is intentionally opinionated. If ex4pm later needs one of these capabilities, treat it as a new admitted edge rather than restoring an `all` extra.
+This is a physical trim: unretained solver/domain source subtrees are not shipped in the fork. If ex4pm later needs one of those capabilities, treat it as a new admitted edge rather than restoring an `all` extra.
 
 ## Stable worker protocol
 
@@ -89,11 +91,9 @@ For long-lived container workers, use newline-delimited JSON:
 ex4pm-plan worker
 ```
 
-Each input line must contain an `op`, currently `capabilities` or `solve`.
+Each line contains an `op`, currently `capabilities` or `solve`.
 
 ## Cloud container
-
-The repository Dockerfile builds the lean wheel and starts the JSONL worker:
 
 ```bash
 git submodule update --init --recursive
@@ -101,7 +101,7 @@ docker build -t ex4pm-plan .
 docker run --rm -i ex4pm-plan < requests.jsonl
 ```
 
-This image is intended for ephemeral jobs on Kubernetes, AWS, Azure, GCP, Fly.io, or any OCI-capable scheduler. Cloud-provider credentials belong to ex4pm's execution broker, not inside this worker.
+The image is intended for ephemeral jobs on Kubernetes, AWS, Azure, GCP, Fly.io, or any OCI-capable scheduler. Cloud-provider credentials belong to ex4pm's execution broker, never inside this worker. Scale by launching more worker capsules; `parallel=True` inside Python is intentionally `UNSUPPORTED`.
 
 ## Development
 
@@ -114,8 +114,8 @@ python -m build --wheel
 ex4pm-plan capabilities
 ```
 
-The fork-specific CI intentionally validates this maintained surface instead of the complete upstream catalog.
+The fork-specific CI validates only this maintained surface.
 
 ## Upstream correspondence
 
-`skdecide` remains the Python namespace for retained upstream semantics. The distribution is named `ex4pm-plan`, and `src/ex4pm_plan/worker.py` is only a transport/projection layer over those semantics. Future upstream updates should be rebased or replayed from an exact Airbus commit, with the slimming patch kept explicit.
+`skdecide` remains the Python namespace for retained upstream semantics. The distribution is named `ex4pm-plan`, and `src/ex4pm_plan/worker.py` is only a transport/projection layer over those semantics. Future upstream updates must be rebased or replayed from an exact Airbus commit with the slimming patch explicit; see `UPSTREAM.md`.

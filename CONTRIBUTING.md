@@ -1,9 +1,7 @@
-# Contributing guidelines
+# Contributing to ex4pm-plan
 
-The latest contributing guide is available in the repository at docs/contribute.md, or online at:
+Preserve the contract in `AGENTS.md`.
 
-https://airbus.github.io/scikit-decide/contribute
+Changes must keep the fork lean, preserve Airbus MIT attribution, and add focused execution proof for every capability added. Do not restore upstream umbrella extras or dormant heavy solver/domain trees merely for compatibility. A new heavy dependency requires an explicit capability/cost justification and must not gain actuation authority.
 
-## License
-By contributing to this repository, you agree that your contributions will be licensed
-under the LICENSE file in this root directory.
+Before publishing a change, run the focused test suite, build the wheel, and execute the worker smoke contract on the exact source head whenever the environment permits it.
