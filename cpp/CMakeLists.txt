@@ -28,7 +28,6 @@ ENDIF()
 SET(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 INCLUDE(GenerateTemplateInstantiationFiles)
 INCLUDE(RegisterInnerSolver)
-INCLUDE(RegisterPddlInnerSolver)
 
 SET(LIBS "")
 SET(INTERFACES "")
