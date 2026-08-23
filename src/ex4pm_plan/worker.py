@@ -197,7 +197,7 @@ def solve(request: Any) -> dict[str, Any]:
         "protocol": PROTOCOL,
         "solver": solver_name,
         "problem": admitted,
-        "parameters": {"parallel": False, "weight": 1.0},
+        "parameters": {"parallel": False},
     }
 
     try:
@@ -206,7 +206,7 @@ def solve(request: Any) -> dict[str, Any]:
             runtime["attributes"],
             targets=runtime["targets"],
         )
-        with Astar(domain_factory=lambda: domain, parallel=False, weight=1.0) as planner:
+        with Astar(domain_factory=lambda: domain, parallel=False) as planner:
             planner.solve_from(admitted["initial"])
             raw_plan = planner.get_plan(admitted["initial"])
             explored_states = planner.get_nb_explored_states()
