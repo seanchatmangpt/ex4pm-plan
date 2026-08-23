@@ -10,6 +10,9 @@ RUN python -m pip install --no-cache-dir "cmake>=3.26,<4" ninja \
     && python -m pip wheel --no-cache-dir . -w /wheels
 
 FROM python:3.12-slim
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /wheels /wheels
 RUN python -m pip install --no-cache-dir --no-index --find-links=/wheels ex4pm-plan \
     && rm -rf /wheels
