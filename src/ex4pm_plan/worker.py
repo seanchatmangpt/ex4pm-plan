@@ -13,12 +13,17 @@ import sys
 from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
+from ex4pm_plan.generated_contract import (
+    ACTUATION,
+    AUTHORITY,
+    LIBRARY_SOLVERS,
+    OPERATIONS,
+    PROTOCOL,
+    SUPPORTED_PROBLEM,
+    SUPPORTED_SOLVER,
+)
 from skdecide.hub.domain.graph_domain.GraphDomain import GraphDomain
 from skdecide.hub.solver.astar import Astar
-
-PROTOCOL = "ex4pm-plan/v1"
-SUPPORTED_SOLVER = "astar"
-SUPPORTED_PROBLEM = "deterministic_graph"
 
 
 def _package_version() -> str:
@@ -72,9 +77,9 @@ def capabilities() -> dict[str, Any]:
         "version": _package_version(),
         "problem_types": [SUPPORTED_PROBLEM],
         "worker_solvers": [SUPPORTED_SOLVER],
-        "library_solvers": ["astar", "bfws", "iw"],
-        "authority": "CONSTRUCT_ONLY",
-        "actuation": False,
+        "library_solvers": list(LIBRARY_SOLVERS),
+        "authority": AUTHORITY,
+        "actuation": ACTUATION,
     }
 
 
@@ -297,7 +302,7 @@ def handle(request: Any) -> dict[str, Any]:
         "UNSUPPORTED_OPERATION",
         "operation is not implemented by the lean worker",
         received=operation,
-        supported=["capabilities", "solve"],
+        supported=list(OPERATIONS),
     )
 
 
