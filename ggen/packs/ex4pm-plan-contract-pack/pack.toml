@@ -1,0 +1,4 @@
+[pack]
+name = "ex4pm-plan-contract-pack"
+version = "0.1.0"
+description = "Ontology-backed projection of the ex4pm-plan CONSTRUCT-only worker contract into runtime constants; generated consequences are verified independently and never grant DO authority."

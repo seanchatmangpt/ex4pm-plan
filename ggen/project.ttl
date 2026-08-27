@@ -1,0 +1,8 @@
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix ep: <https://w3id.org/ex4pm/plan#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+
+<https://w3id.org/ex4pm/plan/project>
+    a prov:Entity ;
+    dcterms:title "ex4pm-plan ggen consumer" ;
+    dcterms:relation ep:Worker .

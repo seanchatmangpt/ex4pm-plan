@@ -11,7 +11,6 @@ from skdecide.solvers import *
 from skdecide.utils import *
 
 try:
-    __version__ = version("scikit-decide")
+    __version__ = version("ex4pm-plan")
 except PackageNotFoundError:
-    # package is not installed
-    pass
+    __version__ = "0+source"

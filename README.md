@@ -1,115 +1,154 @@
+# ex4pm-plan
 
-                    _  __    _  __              __             _      __
-       _____ _____ (_)/ /__ (_)/ /_        ____/ /___   _____ (_)____/ /___
-      / ___// ___// // //_// // __/______ / __  // _ \ / ___// // __  // _ \
-     (__  )/ /__ / // ,<  / // /_ /_____// /_/ //  __// /__ / // /_/ //  __/
-    /____/ \___//_//_/|_|/_/ \__/        \__,_/ \___/ \___//_/ \__,_/ \___/
+`ex4pm-plan` is the 80/20 planning/search compute worker for [ex4pm](https://github.com/seanchatmangpt/ex4pm). It is a deliberately lean downstream distribution of [Airbus scikit-decide](https://github.com/airbus/scikit-decide), preserving its high-value domain/solver calculus and selected native search algorithms while physically removing unsupported heavyweight surfaces.
 
-<br>
-<p align="center">
-  <a href="https://github.com/airbus/scikit-decide/actions/workflows/ci.yml?query=branch%3Amaster">
-    <img src="https://img.shields.io/github/actions/workflow/status/airbus/scikit-decide/ci.yml?branch=master&logo=github&label=CI%20status" alt="actions status">
-  </a>
-  <a href="https://github.com/airbus/scikit-decide/tags">
-    <img src="https://img.shields.io/github/tag/airbus/scikit-decide.svg?label=current%20version" alt="version">
-  </a>
-  <a href="https://github.com/airbus/scikit-decide/stargazers">
-    <img src="https://img.shields.io/github/stars/airbus/scikit-decide.svg" alt="stars">
-  </a>
-  <a href="https://github.com/airbus/scikit-decide/network">
-    <img src="https://img.shields.io/github/forks/airbus/scikit-decide.svg" alt="forks">
-  </a>
-</p>
-<br>
+Upstream baseline: `airbus/scikit-decide@138799ba44a9049ee9bb21a937c9ac669f043afd`.
 
-# Scikit-decide for Python
+The upstream MIT license and AIRBUS copyright notices are preserved.
 
-Scikit-decide is an AI framework for Reinforcement Learning, Automated Planning and Scheduling.
+## Why this fork exists
 
-This framework was initiated at [Airbus](https://www.airbus.com) AI Research and notably received contributions through the [ANITI](https://aniti.univ-toulouse.fr/en/) and [TUPLES](https://tuples.ai/) projects, and also from [ANU](https://www.anu.edu.au/).
+ex4pm should use the BEAM for supervision, routing, admission, cloud placement, concurrency, budgets, authority, receipts, and replanning. Planner runtimes should be disposable compute capsules.
 
-## Main features
-
-<!--features-list-start-->
-
-- **Problem solving:** describe your decision-making problem once and auto-match compatible solvers.\
-  _For instance planning/scheduling problems can be solved by RL solvers using GNNs._
-- **Growing catalog:** enjoy a growing list of domains & solvers catalog, supported by the community.
-- **Open & Extensible:** scikit-decide is open source and is able to wrap existing state-of-the-art domains/solvers.
-- **Domains available:**
-  - [Gym(nasium)](https://gymnasium.farama.org/) environments for reinforcement learning (RL)
-  - [PDDL](https://planning.wiki/) (Planning Domain Definition Language) via [unified-planning](https://github.com/aiplan4eu/unified-planning) and [plado](https://github.com/massle/plado) libraries
-    - encoding in gym(nasium) spaces compatible with RL
-    - graph representations for RL (inspired by [Lifted Learning Graph](https://doi.org/10.1609/aaai.v38i18.29986)) :new:
-  - [RDDL](https://users.cecs.anu.edu.au/~ssanner/IPPC_2011/RDDL.pdf) (Relational Dynamic Influence Diagram Language) using [pyrddl-gym](https://github.com/pyrddlgym-project) library.
-  - Flight planning, based on [openap](https://openap.dev/) or in-house Poll-Schumann for performance model
-  - Scheduling, based on rcpsp problem from [discrete-optimization](https://airbus.github.io/discrete-optimization) library
-  - Toy domains like: maze, mastermind, rock-paper-scissors
-- **Solvers available:**
-  - RL solvers from ray.rllib and stable-baselines3
-    - existing algos with action masking
-    - adaptation of RL algos for graph observation, based on GNNs from [pytorch-geometric](https://pytorch-geometric.readthedocs.io/) :new:
-    - autoregressive models with action masking component by component for parametric actions :new:
-  - Planning solvers from [unified-planning](https://github.com/aiplan4eu/unified-planning) library
-  - RDDL solvers jax and gurobi-based based on pyRDDLGym-jax and pyRDDLGym-gurobi from [pyrddl-gym project](https://github.com/pyrddlgym-project)
-  - Search solvers coded in scikit-decide library:
-    - A*, AO*, Improved-LAO*
-    - Value Iteration (VI), Policy Iteration (PI)
-    - Labeled RTDP, Learning Real-Time A*
-    - LDFS (Label-correcting Depth-First Search), Iterative Deepening A*
-    - SSiPP (Short-Sighted Planning), FRET (Find, Revise, Eliminate Traps)
-    - iDual (LP-based SSP solver), Goal Probability and Cost Iteration (GPCI)
-    - Best First Width Search, Iterated Width (IW), Rollout IW (RIW)
-    - Monte Carlo Tree Search (MCTS), POMCP
-    - DESPOT, SARSOP, Witness (POMDP solvers)
-    - RTDP-Bel (belief-space RTDP), HSVI / GoalHSVI
-    - SSPReplan, SSPDetHindsight, SSPPlanMerger (determinization approaches)
-    - Multi-Agent RTDP, Multi-Agent Heuristic meta-solver (MAHD)
-  - (Probabilistic) PDDL (PPDDL) solvers:
-    - FF planner
-    - FFReplan / PPDDLReplan (replanning with pluggable inner solvers)
-    - FFDetHindsight / PPDDLDetHindsight (determinization in hindsight)
-    - RFF / PPDDLPlanMerger (plan aggregation into a policy)
-  - PDDL heuristics (with their probabilistic extensions):
-    - Delete-Relaxation heuristics
-    - FF Heuristic
-  - PDDL+ parser and simulators with Probabilistic PDDL extensions
-    - Lifted applicable action filtering using Clingo
-    - Z3-based event synchronization in python using [z3-solver](https://pypi.org/project/z3-solver/)
-  - Evolution strategy: Cartesian Genetic Programming (CGP)
-  - Scheduling solvers from [discrete-optimization](https://airbus.github.io/discrete-optimization),
-    - itself wrapping [ortools](https://developers.google.com/optimization), [gurobi](https://www.gurobi.com/),
-    [toulbar](https://toulbar2.github.io/toulbar2/#), [minizinc](https://www.minizinc.org/),
-    [deap](https://deap.readthedocs.io/) (genetic algorithm), [didppy](https://didppy.readthedocs.io/) (dynamic programming),
-    - and coding local search (hill climber, simulated annealing), Large Neighborhood Search (LNS), and
-    genetic programming based hyper-heuristic (GPHH)
-- **Tuning solvers hyperparameters**
-  - hyperparameters definition
-  - automated study with optuna
-
-<!--features-list-end-->
-
-## Installation
-
-Quick version:
-```shell
-pip install scikit-decide[all]
+```text
+ex4pm
+  -> admit PlanningProblem
+  -> select compatible planner compute
+  -> authorize compute budget
+  -> launch ex4pm-plan anywhere
+  -> receive candidate plan
+  -> independently validate
+  -> BRCE / DO only in ex4pm
 ```
-For more details, see the [online documentation](https://airbus.github.io/scikit-decide/install).
 
-## Documentation
+`ex4pm-plan` therefore has **CONSTRUCT authority only**. It computes candidate plans; it does not actuate external systems and does not claim to manufacture ex4pm receipts.
 
-The latest documentation is available [online](https://airbus.github.io/scikit-decide).
+## The 80/20 cut
 
-## Examples
+### Retained
 
-Some educational notebooks are available in `notebooks/` folder.
-Links to launch them online with [binder](https://mybinder.org/) are provided in the
-[Notebooks section](https://airbus.github.io/scikit-decide/notebooks) of the online documentation.
+- scikit-decide core domain/solver abstractions
+- explicit deterministic `GraphDomain`
+- native C++ A*
+- native C++ BFWS
+- native C++ IW
+- A* exposed through the stable cloud-worker protocol
+- deterministic admission, replay verification, and evidence hashes
 
-More examples can be found as Python scripts in the `examples/` folder, showing how to import or define a domain,
-and how to run or solve it. Most of the examples rely on scikit-decide Hub, an extensible catalog of domains/solvers.
+### Removed
 
-## Contributing
+- Ray / RLlib
+- Stable-Baselines3
+- PyTorch / Torch Geometric
+- JAX / Flax
+- RDDL and Gurobi integrations
+- flight-planning/cartography stacks
+- discrete-optimization and scheduling stacks
+- LP/POMDP solver families
+- PDDL/PPDDL grounding stack, Clingo, and PEGTL
+- Optuna tuning
+- Python pathos/pynng/dill multiprocessing
+- Binder, notebooks, docs, examples, stale JS tooling and upstream mega-lockfiles
+- the upstream broad solver/domain test matrix
 
-See more about how to contribute in the [online documentation](https://airbus.github.io/scikit-decide/contribute).
+This is a physical trim: unretained solver/domain source subtrees are not shipped in the fork. If ex4pm later needs one of those capabilities, treat it as a new admitted edge rather than restoring an `all` extra.
+
+## Stable worker protocol
+
+Protocol identity: `ex4pm-plan/v1`.
+
+Capabilities:
+
+```bash
+ex4pm-plan capabilities
+```
+
+A deterministic graph solve reads JSON from stdin:
+
+```bash
+cat <<'JSON' | ex4pm-plan solve
+{
+  "solver": "astar",
+  "problem": {
+    "type": "deterministic_graph",
+    "initial": "A",
+    "goals": ["G"],
+    "edges": [
+      {"from": "A", "to": "G", "action": "expensive", "cost": 5},
+      {"from": "A", "to": "B", "action": "to_b", "cost": 1},
+      {"from": "B", "to": "G", "action": "to_g", "cost": 1}
+    ]
+  }
+}
+JSON
+```
+
+The worker returns the replayed path, total cost, execution metrics, and deterministic SHA-256 evidence identities. `ALIVE` on a solve means the exact admitted planner invocation executed and its result replayed against the admitted graph. Invalid problems are typed `REFUSED`; non-retained capabilities are `UNSUPPORTED`.
+
+For long-lived container workers, use newline-delimited JSON:
+
+```bash
+ex4pm-plan worker
+```
+
+Each line contains an `op`, currently `capabilities` or `solve`.
+
+## ggen manufacturing source
+
+The stable worker contract is manufactured from admitted knowledge rather than maintained twice by hand:
+
+```text
+ggen/packs/ex4pm-plan-contract-pack/ontology.ttl
+  -> SPARQL bindings in generated_contract.py.tmpl
+  -> ggen sync run
+  -> src/ex4pm_plan/generated_contract.py
+  -> worker.py
+  -> exact planner execution + replay evidence
+```
+
+The pack reuses PROV-O for upstream provenance, DCTERMS for identity, and SKOS for capability notations. The local `ggen.toml` is the consumer root. `src/ex4pm_plan/generated_contract.py` is generated output and must not be hand-edited.
+
+`scripts/verify_ggen_projection.py` is deliberately independent of ggen's renderer. It parses the RDF, validates the project/pack wiring and authority fence, then compares the admitted graph to the committed runtime projection. Its `ALIVE` standing certifies only that narrow graph/projection-consistency subject.
+
+The repository workflow pins ggen source at `1e9fcb9679a61460fbd641415cb72511c7e50b33` and the required `nightly-2026-06-22` Rust toolchain. It performs a dry-run, a real `ggen sync run`, independent projection verification, `ggen receipt verify`, and a second sync whose generated-contract digest must remain unchanged.
+
+For a local replay with a source-built ggen CLI:
+
+```bash
+python -m pip install "rdflib>=7,<8"
+python scripts/verify_ggen_projection.py
+/path/to/ggen/target/debug/ggen sync run --dry-run
+/path/to/ggen/target/debug/ggen sync run
+python scripts/verify_ggen_projection.py
+/path/to/ggen/target/debug/ggen receipt verify
+```
+
+A ggen receipt certifies repository manufacture. It is not an ex4pm BRCE receipt and grants no external actuation authority.
+
+## Cloud container
+
+```bash
+git submodule update --init --recursive
+docker build -t ex4pm-plan .
+docker run --rm -i ex4pm-plan < requests.jsonl
+```
+
+The image is intended for ephemeral jobs on Kubernetes, AWS, Azure, GCP, Fly.io, or any OCI-capable scheduler. Cloud-provider credentials belong to ex4pm's execution broker, never inside this worker. Scale by launching more worker capsules; `parallel=True` inside Python is intentionally `UNSUPPORTED`.
+
+## Development
+
+```bash
+git submodule update --init --recursive
+python -m pip install -U pip
+python -m pip install -e . pytest build "rdflib>=7,<8"
+python scripts/verify_ggen_projection.py
+pytest -q tests/ex4pm_plan
+python -m build --wheel
+ex4pm-plan capabilities
+```
+
+The fork-specific CI validates only this maintained surface.
+
+## Upstream correspondence
+
+`skdecide` remains the Python namespace for retained upstream semantics. The distribution is named `ex4pm-plan`, and `src/ex4pm_plan/worker.py` is only a transport/projection layer over those semantics. Future upstream updates must be rebased or replayed from an exact Airbus commit with the slimming patch explicit; see `UPSTREAM.md`.
