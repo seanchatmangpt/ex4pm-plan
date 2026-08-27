@@ -67,7 +67,39 @@ def _unsupported(code: str, message: str, **details: Any) -> dict[str, Any]:
     }
 
 
+def _contract_subject() -> dict[str, Any]:
+    return {
+        "protocol": PROTOCOL,
+        "problem_types": [SUPPORTED_PROBLEM],
+        "worker_solvers": [SUPPORTED_SOLVER],
+        "library_solvers": list(LIBRARY_SOLVERS),
+        "operations": list(OPERATIONS),
+        "authority": AUTHORITY,
+        "actuation": ACTUATION,
+    }
+
+
+def _contract_hash() -> str:
+    return _hash(_contract_subject())
+
+
+def _authority_fence() -> dict[str, Any] | None:
+    if AUTHORITY == "CONSTRUCT_ONLY" and ACTUATION is False:
+        return None
+    return _refused(
+        "AUTHORITY_FENCE_VIOLATION",
+        "ggen contract must remain CONSTRUCT_ONLY with actuation disabled",
+        authority=AUTHORITY,
+        actuation=ACTUATION,
+        contract_hash=_contract_hash(),
+    )
+
+
 def capabilities() -> dict[str, Any]:
+    refusal = _authority_fence()
+    if refusal is not None:
+        return refusal
+
     return {
         "protocol": PROTOCOL,
         "status": "ok",
@@ -78,8 +110,10 @@ def capabilities() -> dict[str, Any]:
         "problem_types": [SUPPORTED_PROBLEM],
         "worker_solvers": [SUPPORTED_SOLVER],
         "library_solvers": list(LIBRARY_SOLVERS),
+        "operations": list(OPERATIONS),
         "authority": AUTHORITY,
         "actuation": ACTUATION,
+        "contract_hash": _contract_hash(),
     }
 
 
@@ -181,6 +215,10 @@ def _admit_problem(problem: Any) -> tuple[dict[str, Any], dict[str, Any]] | dict
 
 
 def solve(request: Any) -> dict[str, Any]:
+    refusal = _authority_fence()
+    if refusal is not None:
+        return refusal
+
     if not isinstance(request, dict):
         return _refused("INVALID_REQUEST", "request must be a JSON object")
 
@@ -198,8 +236,10 @@ def solve(request: Any) -> dict[str, Any]:
         return admitted_result
 
     admitted, runtime = admitted_result
+    contract_hash = _contract_hash()
     subject = {
         "protocol": PROTOCOL,
+        "contract_hash": contract_hash,
         "solver": solver_name,
         "problem": admitted,
         "parameters": {"parallel": False},
@@ -222,7 +262,10 @@ def solve(request: Any) -> dict[str, Any]:
             "status": "error",
             "standing": "BUILD_BROKEN",
             "error": {"type": type(exc).__name__, "message": str(exc)},
-            "evidence": {"subject_hash": _hash(subject)},
+            "evidence": {
+                "contract_hash": contract_hash,
+                "subject_hash": _hash(subject),
+            },
         }
 
     current = admitted["initial"]
@@ -239,7 +282,10 @@ def solve(request: Any) -> dict[str, Any]:
                     "type": "REPLAY_STATE_MISMATCH",
                     "message": "planner result did not replay against the admitted graph",
                 },
-                "evidence": {"subject_hash": _hash(subject)},
+                "evidence": {
+                    "contract_hash": contract_hash,
+                    "subject_hash": _hash(subject),
+                },
             }
         if action not in runtime["next_state_map"].get(current, {}):
             return {
@@ -250,7 +296,10 @@ def solve(request: Any) -> dict[str, Any]:
                     "type": "REPLAY_ACTION_MISMATCH",
                     "message": "planner returned an action absent from the admitted graph",
                 },
-                "evidence": {"subject_hash": _hash(subject)},
+                "evidence": {
+                    "contract_hash": contract_hash,
+                    "subject_hash": _hash(subject),
+                },
             }
 
         next_state = runtime["next_state_map"][current][action]
@@ -276,6 +325,7 @@ def solve(request: Any) -> dict[str, Any]:
             "kind": "planner_invocation",
             "solver": solver_name,
             "problem_type": SUPPORTED_PROBLEM,
+            "contract_hash": contract_hash,
         },
         "result": result,
         "metrics": {
@@ -283,6 +333,7 @@ def solve(request: Any) -> dict[str, Any]:
             "solving_time_ms": solving_time_ms,
         },
         "evidence": {
+            "contract_hash": contract_hash,
             "subject_hash": _hash(subject),
             "result_hash": _hash(result),
             "replay_verified": True,
@@ -330,8 +381,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "capabilities":
-        _emit(capabilities())
-        return 0
+        response = capabilities()
+        _emit(response)
+        return 0 if response.get("standing") == "ALIVE" else 2
 
     if args.command == "solve":
         request = _read_json(sys.stdin)
@@ -341,8 +393,9 @@ def main(argv: list[str] | None = None) -> int:
         if not isinstance(request, dict):
             _emit(_refused("INVALID_REQUEST", "request must be a JSON object"))
             return 2
-        _emit(solve(request))
-        return 0
+        response = solve(request)
+        _emit(response)
+        return 0 if response.get("standing") in {"ALIVE", "UNSUPPORTED"} else 2
 
     for line in sys.stdin:
         line = line.strip()

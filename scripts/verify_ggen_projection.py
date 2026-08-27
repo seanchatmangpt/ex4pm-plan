@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import importlib.util
 import json
@@ -39,6 +40,7 @@ PACK_MANIFEST = PACK_ROOT / "pack.toml"
 ONTOLOGY = PACK_ROOT / "ontology.ttl"
 TEMPLATE = PACK_ROOT / "templates" / "generated_contract.py.tmpl"
 PROJECTION = ROOT / "src" / "ex4pm_plan" / "generated_contract.py"
+WORKER_SOURCE = ROOT / "src" / "ex4pm_plan" / "worker.py"
 
 EP = Namespace("https://w3id.org/ex4pm/plan#")
 WORKER = EP.Worker
@@ -47,6 +49,15 @@ EXPECTED_UPSTREAM = URIRef(
     "https://github.com/airbus/scikit-decide/commit/"
     "138799ba44a9049ee9bb21a937c9ac669f043afd"
 )
+CONTRACT_NAMES = {
+    "ACTUATION",
+    "AUTHORITY",
+    "LIBRARY_SOLVERS",
+    "OPERATIONS",
+    "PROTOCOL",
+    "SUPPORTED_PROBLEM",
+    "SUPPORTED_SOLVER",
+}
 
 
 def _sha256(path: Path) -> str:
@@ -75,6 +86,76 @@ def _load_projection():
     return module
 
 
+def _function(tree: ast.Module, name: str) -> ast.FunctionDef:
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name == name:
+            return node
+    raise ValueError(f"worker missing function {name}")
+
+
+def _calls(function: ast.FunctionDef, name: str) -> bool:
+    return any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == name
+        for node in ast.walk(function)
+    )
+
+
+def _worker_correspondence() -> None:
+    tree = ast.parse(WORKER_SOURCE.read_text(), filename=str(WORKER_SOURCE))
+
+    imported: set[str] = set()
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom) and node.module == "ex4pm_plan.generated_contract":
+            imported.update(alias.asname or alias.name for alias in node.names)
+
+    missing_imports = sorted(CONTRACT_NAMES - imported)
+    if missing_imports:
+        raise ValueError(
+            "worker does not import the complete generated contract: "
+            + ", ".join(missing_imports)
+        )
+
+    reassigned: set[str] = set()
+    for node in tree.body:
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for target in targets:
+                if isinstance(target, ast.Name) and target.id in CONTRACT_NAMES:
+                    reassigned.add(target.id)
+    if reassigned:
+        raise ValueError(
+            "worker locally reassigns generated contract names: "
+            + ", ".join(sorted(reassigned))
+        )
+
+    fence = _function(tree, "_authority_fence")
+    fence_names = {node.id for node in ast.walk(fence) if isinstance(node, ast.Name)}
+    if not {"AUTHORITY", "ACTUATION"}.issubset(fence_names):
+        raise ValueError("authority fence is not bound to generated authority and actuation")
+
+    fence_literals = {
+        node.value
+        for node in ast.walk(fence)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    }
+    if "AUTHORITY_FENCE_VIOLATION" not in fence_literals:
+        raise ValueError("authority fence lacks typed refusal identity")
+
+    for function_name in ("capabilities", "solve"):
+        function = _function(tree, function_name)
+        if not _calls(function, "_authority_fence"):
+            raise ValueError(f"{function_name} does not execute the authority fence")
+
+    contract_subject = _function(tree, "_contract_subject")
+    subject_names = {
+        node.id for node in ast.walk(contract_subject) if isinstance(node, ast.Name)
+    }
+    if not CONTRACT_NAMES.issubset(subject_names):
+        raise ValueError("contract hash subject does not bind every generated contract field")
+
+
 def _refuse(code: str, message: str, **details: Any) -> int:
     payload: dict[str, Any] = {
         "standing": "REFUSED",
@@ -94,19 +175,19 @@ def main() -> int:
         ONTOLOGY,
         TEMPLATE,
         PROJECTION,
+        WORKER_SOURCE,
     ]
     missing = [str(path.relative_to(ROOT)) for path in required if not path.is_file()]
     if missing:
         return _refuse(
             "MISSING_GGEN_SURFACE",
-            "required ggen source or projection file is absent",
+            "required ggen source, projection, or runtime consumer is absent",
             missing=missing,
         )
 
     try:
         config = tomllib.loads(GGEN_CONFIG.read_text())
         manifest = tomllib.loads(PACK_MANIFEST.read_text())
-
         project_graph = Graph()
         project_graph.parse(PROJECT_ONTOLOGY, format="turtle")
         graph = Graph()
@@ -181,6 +262,8 @@ def main() -> int:
             if query_name not in template_text:
                 raise ValueError(f"template missing SPARQL binding {query_name}")
 
+        _worker_correspondence()
+
         evidence = {
             "ggen_config": _sha256(GGEN_CONFIG),
             "project_ontology": _sha256(PROJECT_ONTOLOGY),
@@ -188,13 +271,14 @@ def main() -> int:
             "ontology": _sha256(ONTOLOGY),
             "template": _sha256(TEMPLATE),
             "projection": _sha256(PROJECTION),
+            "worker_source": _sha256(WORKER_SOURCE),
         }
         print(
             json.dumps(
                 {
                     "standing": "ALIVE",
                     "subject": {
-                        "kind": "ggen_projection_consistency",
+                        "kind": "ggen_projection_runtime_correspondence",
                         "project": "ex4pm-plan",
                         "pack": "ex4pm-plan-contract-pack",
                     },
@@ -209,6 +293,9 @@ def main() -> int:
                         "runtime_projection_matches_rdf",
                         "authority_fence",
                         "template_bindings",
+                        "runtime_imports_generated_projection",
+                        "runtime_executes_authority_fence",
+                        "runtime_contract_hash_closure",
                     ],
                     "evidence": evidence,
                 },
