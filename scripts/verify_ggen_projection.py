@@ -33,6 +33,7 @@ except ImportError as exc:  # pragma: no cover - environment classification
 
 ROOT = Path(__file__).resolve().parents[1]
 GGEN_CONFIG = ROOT / "ggen.toml"
+PROJECT_ONTOLOGY = ROOT / "ggen" / "project.ttl"
 PACK_ROOT = ROOT / "ggen" / "packs" / "ex4pm-plan-contract-pack"
 PACK_MANIFEST = PACK_ROOT / "pack.toml"
 ONTOLOGY = PACK_ROOT / "ontology.ttl"
@@ -41,6 +42,7 @@ PROJECTION = ROOT / "src" / "ex4pm_plan" / "generated_contract.py"
 
 EP = Namespace("https://w3id.org/ex4pm/plan#")
 WORKER = EP.Worker
+PROJECT = URIRef("https://w3id.org/ex4pm/plan/project")
 EXPECTED_UPSTREAM = URIRef(
     "https://github.com/airbus/scikit-decide/commit/"
     "138799ba44a9049ee9bb21a937c9ac669f043afd"
@@ -85,7 +87,14 @@ def _refuse(code: str, message: str, **details: Any) -> int:
 
 
 def main() -> int:
-    required = [GGEN_CONFIG, PACK_MANIFEST, ONTOLOGY, TEMPLATE, PROJECTION]
+    required = [
+        GGEN_CONFIG,
+        PROJECT_ONTOLOGY,
+        PACK_MANIFEST,
+        ONTOLOGY,
+        TEMPLATE,
+        PROJECTION,
+    ]
     missing = [str(path.relative_to(ROOT)) for path in required if not path.is_file()]
     if missing:
         return _refuse(
@@ -97,12 +106,20 @@ def main() -> int:
     try:
         config = tomllib.loads(GGEN_CONFIG.read_text())
         manifest = tomllib.loads(PACK_MANIFEST.read_text())
+
+        project_graph = Graph()
+        project_graph.parse(PROJECT_ONTOLOGY, format="turtle")
         graph = Graph()
         graph.parse(ONTOLOGY, format="turtle")
         projection = _load_projection()
 
         if config.get("project", {}).get("name") != "ex4pm-plan":
             raise ValueError("ggen.toml project identity drift")
+        if config.get("ontology", {}).get("source") != "ggen/project.ttl":
+            raise ValueError("ggen.toml project ontology source drift")
+        if _one(project_graph, PROJECT, DCTERMS.relation) != WORKER:
+            raise ValueError("consumer ontology does not relate the project to ep:Worker")
+
         pack = manifest.get("pack", {})
         if pack.get("name") != "ex4pm-plan-contract-pack":
             raise ValueError("pack identity drift")
@@ -166,6 +183,7 @@ def main() -> int:
 
         evidence = {
             "ggen_config": _sha256(GGEN_CONFIG),
+            "project_ontology": _sha256(PROJECT_ONTOLOGY),
             "pack_manifest": _sha256(PACK_MANIFEST),
             "ontology": _sha256(ONTOLOGY),
             "template": _sha256(TEMPLATE),
@@ -184,6 +202,7 @@ def main() -> int:
                     "actuation": actuation,
                     "checks": [
                         "ggen_project_wiring",
+                        "project_rdf_parse",
                         "pack_manifest",
                         "rdf_parse",
                         "public_ontology_provenance",
