@@ -93,6 +93,38 @@ ex4pm-plan worker
 
 Each line contains an `op`, currently `capabilities` or `solve`.
 
+## ggen manufacturing source
+
+The stable worker contract is manufactured from admitted knowledge rather than maintained twice by hand:
+
+```text
+ggen/packs/ex4pm-plan-contract-pack/ontology.ttl
+  -> SPARQL bindings in generated_contract.py.tmpl
+  -> ggen sync run
+  -> src/ex4pm_plan/generated_contract.py
+  -> worker.py
+  -> exact planner execution + replay evidence
+```
+
+The pack reuses PROV-O for upstream provenance, DCTERMS for identity, and SKOS for capability notations. The local `ggen.toml` is the consumer root. `src/ex4pm_plan/generated_contract.py` is generated output and must not be hand-edited.
+
+`scripts/verify_ggen_projection.py` is deliberately independent of ggen's renderer. It parses the RDF, validates the project/pack wiring and authority fence, then compares the admitted graph to the committed runtime projection. Its `ALIVE` standing certifies only that narrow graph/projection-consistency subject.
+
+The repository workflow pins ggen source at `1e9fcb9679a61460fbd641415cb72511c7e50b33` and the required `nightly-2026-06-22` Rust toolchain. It performs a dry-run, a real `ggen sync run`, independent projection verification, `ggen receipt verify`, and a second sync whose generated-contract digest must remain unchanged.
+
+For a local replay with a source-built ggen CLI:
+
+```bash
+python -m pip install "rdflib>=7,<8"
+python scripts/verify_ggen_projection.py
+/path/to/ggen/target/debug/ggen sync run --dry-run
+/path/to/ggen/target/debug/ggen sync run
+python scripts/verify_ggen_projection.py
+/path/to/ggen/target/debug/ggen receipt verify
+```
+
+A ggen receipt certifies repository manufacture. It is not an ex4pm BRCE receipt and grants no external actuation authority.
+
 ## Cloud container
 
 ```bash
@@ -108,7 +140,8 @@ The image is intended for ephemeral jobs on Kubernetes, AWS, Azure, GCP, Fly.io,
 ```bash
 git submodule update --init --recursive
 python -m pip install -U pip
-python -m pip install -e . pytest build
+python -m pip install -e . pytest build "rdflib>=7,<8"
+python scripts/verify_ggen_projection.py
 pytest -q tests/ex4pm_plan
 python -m build --wheel
 ex4pm-plan capabilities
