@@ -1,0 +1,46 @@
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix ep: <https://w3id.org/ex4pm/plan#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+ep:Worker
+    a ep:PlannerWorker, prov:Entity ;
+    dcterms:title "ex4pm-plan" ;
+    dcterms:identifier "ex4pm-plan/v1" ;
+    prov:wasDerivedFrom <https://github.com/airbus/scikit-decide/commit/138799ba44a9049ee9bb21a937c9ac669f043afd> ;
+    ep:problemType ep:DeterministicGraph ;
+    ep:workerSolver ep:Astar ;
+    ep:librarySolver ep:Astar, ep:BFWS, ep:IW ;
+    ep:operation ep:Capabilities, ep:Solve ;
+    ep:authority "CONSTRUCT_ONLY" ;
+    ep:actuation "false" .
+
+ep:DeterministicGraph
+    a skos:Concept ;
+    skos:prefLabel "Deterministic explicit graph" ;
+    skos:notation "deterministic_graph" .
+
+ep:Astar
+    a skos:Concept ;
+    skos:prefLabel "A*" ;
+    skos:notation "astar" .
+
+ep:BFWS
+    a skos:Concept ;
+    skos:prefLabel "Best First Width Search" ;
+    skos:notation "bfws" .
+
+ep:IW
+    a skos:Concept ;
+    skos:prefLabel "Iterated Width" ;
+    skos:notation "iw" .
+
+ep:Capabilities
+    a skos:Concept ;
+    skos:prefLabel "Capabilities operation" ;
+    skos:notation "capabilities" .
+
+ep:Solve
+    a skos:Concept ;
+    skos:prefLabel "Solve operation" ;
+    skos:notation "solve" .

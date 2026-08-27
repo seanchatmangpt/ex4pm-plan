@@ -1,0 +1,14 @@
+[project]
+name = "ex4pm-plan"
+
+[ontology]
+source = "ggen/project.ttl"
+
+[ontology.prefixes]
+ep = "https://w3id.org/ex4pm/plan#"
+dcterms = "http://purl.org/dc/terms/"
+prov = "http://www.w3.org/ns/prov#"
+skos = "http://www.w3.org/2004/02/skos/core#"
+
+[packs]
+ex4pm-plan-contract-pack = { path = "ggen/packs/ex4pm-plan-contract-pack" }
