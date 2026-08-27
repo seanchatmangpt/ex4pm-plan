@@ -68,11 +68,41 @@ jobs:
       - name: Build exact ggen CLI
         run: cargo build --manifest-path .ggen-runtime/Cargo.toml -p ggen-cli-lib --bin ggen
 
-      - name: Dry-run ggen manufacture
-        run: .ggen-runtime/target/debug/ggen sync run --dry-run | tee /tmp/ggen-sync-dry.json
+      - name: Fence generated consequence before manufacture
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp src/ex4pm_plan/generated_contract.py /tmp/generated_contract.expected.py
+          sha256sum /tmp/generated_contract.expected.py | tee /tmp/generated-contract-expected.sha256
+          rm src/ex4pm_plan/generated_contract.py
+          test ! -e src/ex4pm_plan/generated_contract.py
 
-      - name: Execute ggen manufacture
+      - name: Dry-run ggen manufacture from absence
+        shell: bash
+        run: |
+          set -euo pipefail
+          .ggen-runtime/target/debug/ggen sync run --dry-run | tee /tmp/ggen-sync-dry.json
+          test ! -e src/ex4pm_plan/generated_contract.py || {
+            printf 'REFUSED_DRY_RUN_ACTUATED generated projection was written during dry-run\n' >&2
+            exit 72
+          }
+
+      - name: Execute ggen manufacture from absence
         run: .ggen-runtime/target/debug/ggen sync run | tee /tmp/ggen-sync.json
+
+      - name: Prove manufactured projection equals admitted committed consequence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f src/ex4pm_plan/generated_contract.py || {
+            printf 'BUILD_BROKEN_GGEN_DID_NOT_MANUFACTURE projection is absent after sync\n' >&2
+            exit 73
+          }
+          cmp /tmp/generated_contract.expected.py src/ex4pm_plan/generated_contract.py || {
+            printf 'REFUSED_GENERATED_PROJECTION_DRIFT manufactured bytes differ from admitted projection\n' >&2
+            exit 74
+          }
+          git diff --exit-code -- src/ex4pm_plan/generated_contract.py
 
       - name: Verify manufactured graph projection
         run: python scripts/verify_ggen_projection.py | tee /tmp/ggen-projection-after.json
@@ -99,6 +129,7 @@ jobs:
           name: ex4pm-plan-ggen-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             /tmp/ggen-projection-before.json
+            /tmp/generated-contract-expected.sha256
             /tmp/ggen-sync-dry.json
             /tmp/ggen-sync.json
             /tmp/ggen-projection-after.json
@@ -165,6 +196,7 @@ jobs:
           assert data['library_solvers'] == ['astar', 'bfws', 'iw']
           assert data['authority'] == 'CONSTRUCT_ONLY'
           assert data['actuation'] is False
+          assert data['contract_hash'].startswith('sha256:')
           PY
 
       - name: Exact solve smoke
@@ -178,6 +210,7 @@ jobs:
           data=json.load(open('/tmp/result.json'))
           assert data['standing'] == 'ALIVE'
           assert data['evidence']['replay_verified'] is True
+          assert data['evidence']['contract_hash'].startswith('sha256:')
           assert data['result']['total_cost'] == 2.0
           PY
 
